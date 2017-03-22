@@ -6,13 +6,14 @@ import sciunit.scores as scores
 
 import neuronunit.capabilities as cap
 
+'''
 class LayerTest(sciunit.Test):
     """Base class for tests involving models with layers in neural circuit"""
 
-class NumLayerTest(TestLayer):
+class NumLayerTest(LayerTest):
+'''
 
-
-class LayerHeightTest(TestLayer):
+class LayerHeightTest(sciunit.Test):
     """Tests the height of model layers"""
     def __init__(self,
                  observation=[],
@@ -73,5 +74,5 @@ class LayerHeightTest(TestLayer):
 
     #----------------------------------------------------------------------
 
-    def bind_score(self, score, model, observation, prediction):        
+    def bind_score(self, score, model, observation, prediction):
         score.related_data['model_name'] = '%s_%s' % (model.name,self.name)
