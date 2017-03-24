@@ -97,7 +97,7 @@ class LayerHeightTest(sciunit.Test):
                 ("Observation must return a dictionary of the form:"
                 "{'Layer 1': {'height': {'mean': 'X0 um', 'std': 'Y0 um'}},"
                 " 'Layer 2/3': {'height': {'mean': 'X1 um', 'std': 'Y1 um'}},"
-                " ...                                                       }))"
+                " ...                                                       }))"))
 
     #----------------------------------------------------------------------
 
