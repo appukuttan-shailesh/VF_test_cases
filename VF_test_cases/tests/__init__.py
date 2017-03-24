@@ -15,6 +15,8 @@ class NumLayerTest(LayerTest):
 
 class LayerHeightTest(sciunit.Test):
     """Tests the height of model layers"""
+    score_type = scores.StoufferScore
+
     def __init__(self,
                  observation={},
                  name="Layer Height Test"):
@@ -23,7 +25,7 @@ class LayerHeightTest(sciunit.Test):
         required_capabilities = (cap.ProvidesLayerInfo,)
         description = ("Tests the heights of all layers in model")
         units = quantities.um
-        score_type = scores.StoufferScore
+
 
         sciunit.Test.__init__(self, observation, name)
 
@@ -102,15 +104,15 @@ class LayerHeightTest(sciunit.Test):
 
     #----------------------------------------------------------------------
 
-    def generate_prediction(self, model, verbose=True):
+    def generate_prediction(self, model, verbose=False):
         """Implementation of sciunit.Test.generate_prediction."""
         prediction = model.get_layer_info()
-        prediction = self.format_data(self, prediction)
+        prediction = self.format_data(prediction)
         return prediction
 
     #----------------------------------------------------------------------
 
-    def compute_score(self, observation, prediction):
+    def compute_score(self, observation, prediction, verbose=False):
         """Implementation of sciunit.Test.score_prediction."""
         try:
             assert len(observation) == len(prediction)
@@ -119,8 +121,8 @@ class LayerHeightTest(sciunit.Test):
             raise sciunit.InvalidScoreError(("Difference in # of layers."
                                     " Cannot continue test for layer heights."))
 
-        observation, prediction = self.convert_to_list(self, observation, prediction)
-        score = sciunit.scores.StoufferScore.compute(self, observation, prediction)
+        observation, prediction = self.convert_to_list(observation, prediction)
+        score = sciunit.scores.StoufferScore.compute(observation, prediction)
         return score
 
     #----------------------------------------------------------------------
