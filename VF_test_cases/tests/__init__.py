@@ -18,7 +18,7 @@ class LayerHeightTest(sciunit.Test):
     def __init__(self,
                  observation={},
                  name="Layer Height Test"):
-        observation = format_data(observation)
+        observation = self.format_data(observation)
         sciunit.Test.__init__(self, observation, name)
 
         required_capabilities = (cap.ProvidesLayerInfo,)
@@ -104,7 +104,7 @@ class LayerHeightTest(sciunit.Test):
     def generate_prediction(self, model, verbose=True):
         """Implementation of sciunit.Test.generate_prediction."""
         prediction = model.get_layer_info()
-        prediction = format_data(self, prediction)
+        prediction = self.format_data(self, prediction)
         return prediction
 
     #----------------------------------------------------------------------
@@ -118,7 +118,7 @@ class LayerHeightTest(sciunit.Test):
             raise sciunit.InvalidScoreError(("Difference in # of layers."
                                     " Cannot continue test for layer heights."))
 
-        observation, prediction = convert_to_list(self, observation, prediction)
+        observation, prediction = self.convert_to_list(self, observation, prediction)
         score = sciunit.scores.StoufferScore.compute(self, observation, prediction)
         return score
 
