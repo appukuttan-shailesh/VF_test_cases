@@ -26,7 +26,7 @@ class LayerHeightTest(sciunit.Test):
         description = ("Tests the heights of all layers in model")
         units = quantities.um
 
-
+        self.figures = []
         sciunit.Test.__init__(self, observation, name)
 
     #----------------------------------------------------------------------
@@ -128,4 +128,5 @@ class LayerHeightTest(sciunit.Test):
     #----------------------------------------------------------------------
 
     def bind_score(self, score, model, observation, prediction):
-        score.related_data['model_name'] = '%s_%s' % (model.name, self.name)
+        score.related_data["figures"] = self.figures
+        return score
