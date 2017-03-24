@@ -19,12 +19,13 @@ class LayerHeightTest(sciunit.Test):
                  observation={},
                  name="Layer Height Test"):
         observation = self.format_data(observation)
-        sciunit.Test.__init__(self, observation, name)
 
         required_capabilities = (cap.ProvidesLayerInfo,)
         description = ("Tests the heights of all layers in model")
         units = pq.um
         score_type = scores.StoufferScore
+
+        sciunit.Test.__init__(self, observation, name)
 
     #----------------------------------------------------------------------
 
