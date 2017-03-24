@@ -1,5 +1,5 @@
 from types import MethodType
-import quantities as pq
+import quantities
 
 import sciunit
 import sciunit.scores as scores
@@ -16,63 +16,113 @@ class NumLayerTest(LayerTest):
 class LayerHeightTest(sciunit.Test):
     """Tests the height of model layers"""
     def __init__(self,
-                 observation=[],
+                 observation={},
                  name="Layer Height Test"):
+        observation = format_data(observation)
         sciunit.Test.__init__(self, observation, name)
 
         required_capabilities = (cap.ProvidesLayerInfo,)
         description = ("Tests the heights of all layers in model")
         units = pq.um
-        score_type = scores.FloatScore
+        score_type = scores.StoufferScore
+
+    #----------------------------------------------------------------------
+
+    def format_data(self, data):
+        """
+        This accepts data input in the form:
+        ***** (observation) *****
+        {'Layer 1': {'height': {'mean': 'X0 um', 'std': 'Y0 um'}},
+         'Layer 2/3': {'height': {'mean': 'X1 um', 'std': 'Y1 um'}},
+         ...                                                       }
+        ***** (prediction) *****
+        { 'Layer 1': {'height': {'value': 'X0 um'}},
+          'Layer 2/3': {'height': {'value': 'X1 um'}},
+          ...                                        }
+        and splits the values of mean and std to numeric quantities
+        and their units (via quantities package).
+        """
+        for key0 in data.keys():
+            for key, val in data[key0]["height"].items():
+                try:
+                    data[key0]["height"][key] = int(val)
+                except ValueError:
+                    try:
+                        data[key0]["height"][key] = float(val)
+                    except ValueError:
+                        quantity_parts = val.split(" ")
+                        number = float(quantity_parts[0])
+                        units = " ".join(quantity_parts[1:])
+                        data[key0]["height"][key] = quantities.Quantity(number, units)
+
+        return data
+
+    #----------------------------------------------------------------------
+
+    def convert_to_list(self, observation, prediction):
+        """
+        This accepts the data format output by format_data() and converts it
+        into the format required by StoufferScore for scoring. The output
+        is of the form:
+
+        observation = [{'mean':'X0', 'std':'Y0'},
+                       {'mean':'X1', 'std':'Y1'},
+                       ...                      ]
+        prediction = [{'value':'Z0'}, {'value':'Z1'}, ...]
+
+        where Xi, Yi, Zi correspond to values for specific entities
+        to be compared (e.g. height for Layer i of cortical column)
+        """
+        list_observation = []
+        list_prediction = []
+
+        for key0 in observation.keys():
+            temp_dict = {}
+            for key, val in observation[key0]["height"].items():
+                temp_dict[key] = val
+            list_observation.append(temp_dict)
+            list_prediction.append(prediction[key0]["height"])
+
+        return list_observation, list_prediction
 
     #----------------------------------------------------------------------
 
     def validate_observation(self, observation):
         try:
-            for i in len(observation):
-                assert type(observation[i][0]) is StringType
-                assert type(observation[i][1]) is Quantity
-                assert type(observation[i][2]) is Quantity
+            for key0 in observation.keys():
+                for key, val in observation[key0]["height"].items():
+                    assert type(observation[key0]["height"][key]) is quantities.Quantity
         except Exception as e:
-            raise sciunit.ObservationError(("Observation must return a list"
-            "with each element being a sub-list of the form:"
-            "[ ['layer_0_name', 'layer_0_height_mean', 'layer_0_height_std'],"
-            "  ['layer_1_name', 'layer_1_height_mean', 'layer_1_height_std'],"
-            "  ['layer_2_name', 'layer_2_height_mean', 'layer_2_height_std'],"
-            "   ...              ...                    ...                 ]"))
+            raise sciunit.ObservationError(
+                ("Observation must return a dictionary of the form:"
+                "{'Layer 1': {'height': {'mean': 'X0 um', 'std': 'Y0 um'}},"
+                " 'Layer 2/3': {'height': {'mean': 'X1 um', 'std': 'Y1 um'}},"
+                " ...                                                       }))"
 
     #----------------------------------------------------------------------
 
     def generate_prediction(self, model, verbose=True):
         """Implementation of sciunit.Test.generate_prediction."""
         prediction = model.get_layer_info()
+        prediction = format_data(self, prediction)
         return prediction
 
     #----------------------------------------------------------------------
 
     def compute_score(self, observation, prediction):
-		"""Implementation of sciunit.Test.score_prediction."""
+        """Implementation of sciunit.Test.score_prediction."""
         try:
             assert len(observation) == len(prediction)
         except Exception as e:
             # or return InsufficientDataScore ??
             raise sciunit.InvalidScoreError(("Difference in # of layers."
-                                    "Cannot continue test for layer heights."))
+                                    " Cannot continue test for layer heights."))
 
-        for i in len(observation):
-		      z_score[i] = sciunit.comparators.zscore({'mean':observation[i][1], 'std':observation[i][2]}, {'value':prediction[i][1]})	# Computes a decimal Z score.
-
-        # using Stouffer's Z-score method (two-tailed) to combine Z-scores. Refs:
-        # 1) Whitlock, M. C. (2005). Combining probability from independent
-        #       tests: the weighted Z‐method is superior to Fisher's approach.
-        #       Journal of evolutionary biology, 18(5), 1368-1373.
-        # 2) http://stats.stackexchange.com/questions/20126/testing-two-tailed-p-values-using-stouffers-approach
-        score = sum(z_score) / (len(observation)**0.5)
-
-		score = sciunit.scores.FloatScore(score) # Wraps it in a sciunit.Score type.
-		return score
+        observation, prediction = convert_to_list(self, observation, prediction)
+        score = sciunit.scores.StoufferScore.compute(self, observation, prediction)
+        return score
 
     #----------------------------------------------------------------------
 
     def bind_score(self, score, model, observation, prediction):
-        score.related_data['model_name'] = '%s_%s' % (model.name,self.name)
+        score.related_data['model_name'] = '%s_%s' % (model.name, self.name)

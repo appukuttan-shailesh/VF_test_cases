@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
     name='VF_test_cases',
-    version='0.0.2dev',
+    version='0.0.4dev',
     author='Shailesh Appukuttan',
     author_email='shailesh.appukuttan@unic.cnrs-gif.fr',
     packages=['VF_test_cases', 'VF_test_cases.tests'],
