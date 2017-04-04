@@ -1,21 +1,15 @@
 from types import MethodType
 import quantities
+import os
+import matplotlib.pyplot as plt
 
 import sciunit
 import sciunit.scores as scores
-
 import neuronunit.capabilities as cap
-
-'''
-class LayerTest(sciunit.Test):
-    """Base class for tests involving models with layers in neural circuit"""
-
-class NumLayerTest(LayerTest):
-'''
 
 class LayerHeightTest(sciunit.Test):
     """Tests the height of model layers"""
-    score_type = scores.StoufferScore
+    score_type = scores.CombineZScores
 
     def __init__(self,
                  observation={},
@@ -28,6 +22,8 @@ class LayerHeightTest(sciunit.Test):
 
         self.figures = []
         sciunit.Test.__init__(self, observation, name)
+
+        self.directory_output = './output/'
 
     #----------------------------------------------------------------------
 
@@ -62,34 +58,6 @@ class LayerHeightTest(sciunit.Test):
 
     #----------------------------------------------------------------------
 
-    def convert_to_list(self, observation, prediction):
-        """
-        This accepts the data format output by format_data() and converts it
-        into the format required by StoufferScore for scoring. The output
-        is of the form:
-
-        observation = [{'mean':'X0', 'std':'Y0'},
-                       {'mean':'X1', 'std':'Y1'},
-                       ...                      ]
-        prediction = [{'value':'Z0'}, {'value':'Z1'}, ...]
-
-        where Xi, Yi, Zi correspond to values for specific entities
-        to be compared (e.g. height for Layer i of cortical column)
-        """
-        list_observation = []
-        list_prediction = []
-
-        for key0 in observation.keys():
-            temp_dict = {}
-            for key, val in observation[key0]["height"].items():
-                temp_dict[key] = val
-            list_observation.append(temp_dict)
-            list_prediction.append(prediction[key0]["height"])
-
-        return list_observation, list_prediction
-
-    #----------------------------------------------------------------------
-
     def validate_observation(self, observation):
         try:
             for key0 in observation.keys():
@@ -106,6 +74,7 @@ class LayerHeightTest(sciunit.Test):
 
     def generate_prediction(self, model, verbose=False):
         """Implementation of sciunit.Test.generate_prediction."""
+        self.model_name = model.name
         prediction = model.get_layer_info()
         prediction = self.format_data(prediction)
         return prediction
@@ -121,8 +90,60 @@ class LayerHeightTest(sciunit.Test):
             raise sciunit.InvalidScoreError(("Difference in # of layers."
                                     " Cannot continue test for layer heights."))
 
-        observation, prediction = self.convert_to_list(observation, prediction)
-        score = sciunit.scores.StoufferScore.compute(observation, prediction)
+        zscores = {}
+        for key0 in observation.keys():
+            zscores[key0] = sciunit.scores.ZScore.compute(observation[key0]["height"], prediction[key0]["height"]).score
+        score = sciunit.scores.CombineZScores.compute(zscores.values())
+
+        # create output directory
+        path_test_output = self.directory_output + 'layer_height/' + self.model_name + '/'
+        if not os.path.exists(path_test_output):
+            os.makedirs(path_test_output)
+
+        # save figure with mean, std, value for observation and prediction
+        fig = plt.figure()
+        x = range(len(zscores))
+        ix = 0
+        for key0 in observation.keys():
+            y_mean = observation[key0]["height"]["mean"]
+            y_std = observation[key0]["height"]["std"]
+            y_value = prediction[key0]["height"]["value"]
+            ax_o = plt.errorbar(ix, y_mean, yerr=y_std, ecolor='black', elinewidth=2,
+                            capsize=5, capthick=2, fmt='ob', markersize='5', mew=5)
+            ax_p = plt.plot(ix, y_value, 'rx', markersize='8', mew=2)
+            ix = ix + 1
+        xlabels = observation.keys()
+        plt.xticks(x, xlabels, rotation=20)
+        plt.tick_params(labelsize=11)
+        plt.figlegend((ax_o,ax_p[0]), ('Observation', 'Prediction',), 'upper right')
+        plt.margins(0.1)
+        plt.ylabel("Layer Height (um)")
+        fig = plt.gcf()
+        fig.set_size_inches(8, 6)
+        filename = path_test_output + 'data_plot' + '.pdf'
+        plt.savefig(filename, dpi=600,)
+        self.figures.append(filename)
+
+        # save document with Z-score data
+        filename = path_test_output + 'score_summary' + '.txt'
+        dataFile = open(filename, 'w')
+        dataFile.write("==============================================================================\n")
+        dataFile.write("Test Name: %s\n" % self.name)
+        dataFile.write("Model Name: %s\n" % self.model_name)
+        dataFile.write("------------------------------------------------------------------------------\n")
+        dataFile.write("Layer #\tExpt. mean\tExpt. std\tModel value\tZ-score\n")
+        dataFile.write("..............................................................................\n")
+        for key0 in zscores.keys():
+            o_mean = observation[key0]["height"]["mean"]
+            o_std = observation[key0]["height"]["std"]
+            p_value = prediction[key0]["height"]["value"]
+            dataFile.write("%s\t%s\t%s\t%s\t%s\n" % (key0, o_mean, o_std, p_value, zscores[key0]))
+        dataFile.write("------------------------------------------------------------------------------\n")
+        dataFile.write("Combined Score: %s\n" % score)
+        dataFile.write("==============================================================================\n")
+        dataFile.close()
+        self.figures.append(filename)
+
         return score
 
     #----------------------------------------------------------------------
